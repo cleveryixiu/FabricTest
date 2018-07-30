@@ -13,12 +13,12 @@ import (
 type SupplyChaincode struct {
 }
 
-type product struct {
+type Product struct {
 	Name     string `json:"name"`
 	Time     string `json:"time"`
 	Position string `json:"position"`
-	Num      string `json:"num"`
-	Total    string `json:"total"`
+	Num      int    `json:"num"`
+	Total    int    `json:"total"`
 }
 
 func (t *SupplyChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
@@ -35,6 +35,8 @@ func (t *SupplyChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response
 		return t.searchByName(stub, args)
 	} else if fn == "readPro" {
 		return t.readProByName(stub, args)
+	} else if fn == "searchAll" {
+		return t.searchAll(stub, args)
 	}
 
 	return shim.Error("Invoke 调用方法有误！")
@@ -44,20 +46,20 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 	// publish product
 	fmt.Println("start publish")
 
-	//   0           1
-	// "2018/5/43", "从上海出发",
-	if len(args) != 2 {
-		return shim.Error("Incorrect number of arguments. Expecting 2")
-	}
+	//  0        1         2
+	// apple "20180503", "hk",
+	//if len(args) != 2 {
+	//	return shim.Error("publish failed.Incorrect number of arguments. Expecting 2")
+	//}
 
 	// ==== 输入校验 ====
-	fmt.Println("- start init marble")
+	fmt.Println("- validation")
 	if len(args[0]) <= 0 {
 		return shim.Error("1st argument must be a non-empty string")
 	}
-	if len(args[1]) <= 0 {
-		return shim.Error("2nd argument must be a non-empty string")
-	}
+	//if len(args[1]) <= 0 {
+	//	return shim.Error("2nd argument must be a non-empty string")
+	//}
 
 	product := Product{}
 	name := args[0]
@@ -73,10 +75,10 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 		if err != nil {
 			shim.Error(err.Error())
 		}
-		product.total += 1
-		product.num += 1
+		product.Total += 1
+		product.Num += 1
 	} else {
-		data = Data{name: args[0], time: args[1], position: arg[2], num: 1, total: 1}
+		product = Product{Name: args[0], Num: 1, Total: 1}
 	}
 
 	//将 Data 对象 转为 JSON 对象
@@ -97,7 +99,7 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 func (t *SupplyChaincode) searchByName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 
 	fmt.Println("start getPro")
-	// 获取所有用户的票数
+	// get product by name
 	//   0
 	// "bob"
 	if len(args) < 1 {
@@ -118,7 +120,7 @@ func (t *SupplyChaincode) searchByName(stub shim.ChaincodeStubInterface, args []
 // ===============================================
 // readProduct - read a product from chaincode state
 // ===============================================
-func (t *SupplyChaincode) readProByName(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *SupplyChaincode) readProByName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	var name, jsonResp string
 	var err error
 
@@ -143,7 +145,7 @@ func (t *SupplyChaincode) readProByName(stub shim.ChaincodeStubInterface, args [
 // getProductByRange performs a range query based on the start and end keys provided.
 // Therefore, range queries are a safe option for performing update transactions based on query results.
 // ===========================================================================================
-func (t *SupplyChaincode) getProductByRange(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *SupplyChaincode) getProductByRange(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 
 	if len(args) < 2 {
 		return shim.Error("Incorrect number of arguments. Expecting 2")
@@ -236,9 +238,46 @@ func getQueryResultForQueryString(stub shim.ChaincodeStubInterface, queryString 
 	return buffer.Bytes(), nil
 }
 
-func main() {
-	err := shim.Start(new(DataChaincode))
+
+func (t *SupplyChaincode) searchAll(stub shim.ChaincodeStubInterface, args []string) peer.Response{
+
+	fmt.Println("searchAll")
+	// searchAll
+	resultIterator, err := stub.GetStateByRange("","")
 	if err != nil {
-		fmt.Println("vote chaincode start err")
+		return shim.Error("search all failed！")
+	}
+	defer resultIterator.Close()
+
+	var buffer bytes.Buffer
+	buffer.WriteString("[")
+
+	isWritten := false
+
+	for resultIterator.HasNext() {
+		queryResult , err := resultIterator.Next()
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		if isWritten == true {
+			buffer.WriteString(",")
+		}
+
+		buffer.WriteString(string(queryResult.Value))
+		isWritten = true
+	}
+
+	buffer.WriteString("]")
+
+	fmt.Printf("Search all result：\n%s\n",buffer.String())
+	fmt.Println("end search all")
+	return shim.Success(buffer.Bytes())
+}
+
+func main() {
+	err := shim.Start(new(SupplyChaincode))
+	if err != nil {
+		fmt.Println("supply chaincode start err")
 	}
 }
