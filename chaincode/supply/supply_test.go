@@ -19,9 +19,8 @@ func TestExample02_Invoke(t *testing.T) {
 	scc := new(SupplyChaincode)
 	stub := shim.NewMockStub("ex02", scc)
 
-	checkInvoke(t,stub,[][]byte{[]byte("publish"), []byte("apple")})
+	checkInvoke(t,stub,[][]byte{[]byte("publish"), []byte("banana"),[]byte("77"),[]byte("hk734"),[]byte("11"),[]byte("sdsfs"),[]byte("hk")})
 
-	checkInvoke(t,stub,[][]byte{[]byte("publish"), []byte("apple")})
 
 
 	checkInvoke(t,stub,[][]byte{[]byte("searchAll"), []byte("")})

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+        "strconv"
+	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -14,11 +16,14 @@ type SupplyChaincode struct {
 }
 
 type Product struct {
-	Name     string `json:"name"`
-	Time     string `json:"time"`
-	Position string `json:"position"`
-	Num      int    `json:"num"`
-	Total    int    `json:"total"`
+	ItemID    string
+	Name      string 
+	Quantity  string 
+	PartNO    string 
+	BodyId    int
+    Signature     string    
+	Location  string
+	LastId    string 
 }
 
 func (t *SupplyChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
@@ -46,16 +51,17 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 	// publish product
 	fmt.Println("start publish")
 
-	//  0        1         2
-	// apple "20180503", "hk",
+	//     1Name     2Quantity   3PartNo   4BodyId  5Signature 6Location
+	//    "apple",      "1",       "sss",   "67",    "tianbin", "hk"
 	//if len(args) != 2 {
 	//	return shim.Error("publish failed.Incorrect number of arguments. Expecting 2")
 	//}
-
+        fmt.Println("args:")
+        fmt.Println(args)
 	// ==== 输入校验 ====
 	fmt.Println("- validation")
 	if len(args[0]) <= 0 {
-		return shim.Error("1st argument must be a non-empty string")
+		return shim.Error("Name argument must be a non-empty string")
 	}
 	//if len(args[1]) <= 0 {
 	//	return shim.Error("2nd argument must be a non-empty string")
@@ -63,11 +69,16 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 
 	product := Product{}
 	name := args[0]
+	fmt.Println("name:"+name)
+	   
+	itemId:=strconv.FormatInt(time.Now().Unix(),10)
+	fmt.Println("itemId:"+itemId) 
+  
 
 	dataAsBytes, err := stub.GetState(name)
 
 	if err != nil {
-		shim.Error("productName 获取产品信息失败！")
+		shim.Error("product get faled！")
 	}
 
 	if dataAsBytes != nil {
@@ -75,12 +86,20 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 		if err != nil {
 			shim.Error(err.Error())
 		}
-		product.Total += 1
-		product.Num += 1
-	} else {
-		product = Product{Name: args[0], Num: 1, Total: 1}
+		if(itemId == product.ItemID){
+			fmt.Println("product has published!")
+			shim.Error("product has published！")
+		}
+	}else{
+		bodyId,err := strconv.Atoi(args[3])
+		fmt.Println("bodyId:")
+		fmt.Println(bodyId)
+		if err == nil {
+			fmt.Println("bodyId transform failed")
+		}
+		product = Product{ItemID:itemId,Name:args[0],Quantity:args[1],PartNO:args[2],BodyId:bodyId,Signature:args[4],Location:args[5] }
 	}
-
+    fmt.Println(product)
 	//将 Data 对象 转为 JSON 对象
 	dataJsonAsBytes, err := json.Marshal(product)
 	if err != nil {
@@ -93,7 +112,7 @@ func (t *SupplyChaincode) publishPro(stub shim.ChaincodeStubInterface, args []st
 	}
 
 	fmt.Println("end publish product")
-	return shim.Success(nil)
+	return shim.Success([]byte(itemId))
 }
 
 func (t *SupplyChaincode) searchByName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
